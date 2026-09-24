@@ -11,6 +11,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                 "processed_X_train",
                 "processed_X_train_aug",
                 "processed_y_train",
+                "processed_met_train",
                 "processed_X_val",
                 "processed_y_val",
                 "params:model_training",

@@ -18,6 +18,7 @@ def train_model(
     X_train: np.ndarray,
     X_aug: np.ndarray,
     y_train: np.ndarray,
+    met_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
     model_training: dict,
@@ -36,6 +37,7 @@ def train_model(
     nce_hold = model_training.get("nce_hold", 100)
     temperature = model_training.get("temperature", 0.1)
     mse_weight = model_training.get("mse_weight", 0.1)
+    met_weight = model_training.get("met_weight", 0.1)
     target_rate_hz = model_training.get("target_rate_hz", 16.0)
     minbias_label = model_training.get("minbias_label", 2)
     minbias_class_idx = model_training.get("minbias_class_idx", 2)
@@ -72,6 +74,7 @@ def train_model(
         proj_dim=proj_dim,
         mse_weight=mse_weight,
         temperature=temperature,
+        met_weight=met_weight,
     )
 
     def cosine_decay_restarts(epoch):
@@ -135,9 +138,13 @@ def train_model(
     )
     callbacks.append(CkptSaver(encoder, ckpt_path, save_freq=5))
 
+    # Pack class labels and MET into one (N, 2) array so Dataset gets a single
+    # target tensor.  compute_loss splits them back out: col 0 = label, col 1 = met.
+    y_met_train = np.stack([y_train.astype(np.float32), met_train.astype(np.float32)], axis=1)
+
     dataset_train = Dataset(
         (X_train.astype(np.float32), X_aug.astype(np.float32)),
-        y_train.astype(np.int32),
+        y_met_train,
         batch_size=batch_size,
         drop_last=True,
         device='gpu:0',

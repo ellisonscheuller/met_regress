@@ -30,6 +30,10 @@ processed_y_train:
   filepath: data/03_preprocessed/y_train.npy
   type: ctl2_model.datasets.npy_dataset.NumpyDataset
 
+processed_met_train:
+  filepath: data/03_preprocessed/met_train.npy
+  type: ctl2_model.datasets.npy_dataset.NumpyDataset
+
 processed_X_val:
   filepath: data/03_preprocessed/X_val.npy
   type: ctl2_model.datasets.npy_dataset.NumpyDataset
@@ -38,12 +42,20 @@ processed_y_val:
   filepath: data/03_preprocessed/y_val.npy
   type: ctl2_model.datasets.npy_dataset.NumpyDataset
 
+processed_met_val:
+  filepath: data/03_preprocessed/met_val.npy
+  type: ctl2_model.datasets.npy_dataset.NumpyDataset
+
 processed_X_eval:
   filepath: data/03_preprocessed/X_eval.npy
   type: ctl2_model.datasets.npy_dataset.NumpyDataset
 
 processed_y_eval:
   filepath: data/03_preprocessed/y_eval.npy
+  type: ctl2_model.datasets.npy_dataset.NumpyDataset
+
+processed_met_eval:
+  filepath: data/03_preprocessed/met_eval.npy
   type: ctl2_model.datasets.npy_dataset.NumpyDataset
 
 train_model:

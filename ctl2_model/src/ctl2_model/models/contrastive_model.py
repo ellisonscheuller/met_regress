@@ -25,6 +25,7 @@ class ContrastiveHGQEncoder(keras.Model):
         proj_dim,
         mse_weight=0.05,
         temperature=0.07,
+        met_weight=0.1,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -32,10 +33,12 @@ class ContrastiveHGQEncoder(keras.Model):
         self.projector = build_projector(None, proj_dim)
         self.mse_weight = mse_weight
         self.temperature = temperature
+        self.met_weight = met_weight
         self.nce_weight = 0.0
 
         self._metric_ce = keras.metrics.Mean(name="train_ce")
         self._metric_nce = keras.metrics.Mean(name="train_nce")
+        self._metric_met = keras.metrics.Mean(name="train_met")
 
     @property
     def layers(self):
@@ -51,11 +54,12 @@ class ContrastiveHGQEncoder(keras.Model):
     @property
     def metrics(self):
         base = super().metrics
-        return base + [self._metric_ce, self._metric_nce]
+        return base + [self._metric_ce, self._metric_nce, self._metric_met]
 
     def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None):
         x_in, x_aug = x
-        labels = keras.ops.cast(y, "int32")
+        labels   = keras.ops.cast(y[:, 0], "int32")  # col 0: class label
+        met_true = y[:, 1]                             # col 1: log1p(MET)
 
         out_in = self.encoder(x_in, training=True)
         out_aug = self.encoder(x_aug, training=True)
@@ -63,6 +67,7 @@ class ContrastiveHGQEncoder(keras.Model):
         latent = out_in["latent"]
         latent_aug = out_aug["latent"]
         class_probs = out_in["class_probs"]
+        met_pred = out_in["met_pred"]
 
         embeddings = self.projector(latent, training=True)
 
@@ -76,9 +81,13 @@ class ContrastiveHGQEncoder(keras.Model):
 
         loss_mse = keras.ops.mean(keras.ops.sum((latent - latent_aug) ** 2, axis=-1))
 
+        # MET regression: mean squared error between predicted and true log1p(MET)
+        loss_met = keras.ops.mean((met_pred - met_true) ** 2)
+
         loss_hgq = keras.ops.sum(self.losses)
 
         self._metric_ce.update_state(loss_ce)
         self._metric_nce.update_state(loss_nce)
+        self._metric_met.update_state(loss_met)
 
-        return self.nce_weight * loss_nce + loss_ce + self.mse_weight * loss_mse + loss_hgq
+        return self.nce_weight * loss_nce + loss_ce + self.mse_weight * loss_mse + self.met_weight * loss_met + loss_hgq

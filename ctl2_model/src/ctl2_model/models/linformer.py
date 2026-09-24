@@ -68,4 +68,10 @@ def get_linformer(
         cls_hid = QDense(ff_dim, activation="relu", name="cls_hidden")(latent)
         cls_out = QDense(n_classes, activation="softmax", name="class_probs")(cls_hid)
 
-    return keras.Model(inputs=inp, outputs={"latent": latent, "class_probs": cls_out})
+    # MET regression head — full precision, outside HGQ scope.
+    # Training auxiliary only; not included in firmware synthesis.
+    met_hid = keras.layers.Dense(ff_dim, activation="relu", name="met_hidden")(latent)
+    met_out = keras.layers.Dense(1, name="met_pred")(met_hid)
+    met_out = keras.layers.Flatten()(met_out)  # (batch, 1) → (batch,)
+
+    return keras.Model(inputs=inp, outputs={"latent": latent, "class_probs": cls_out, "met_pred": met_out})

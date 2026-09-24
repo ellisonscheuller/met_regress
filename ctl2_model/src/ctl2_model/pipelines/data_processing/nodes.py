@@ -63,12 +63,23 @@ def preprocess_and_augment(
 
     pid_mapping = build_pid_mapping(raw_tensor[train_idx])
 
+    # Compute L1 MET from raw pt/phi before any normalisation or augmentation.
+    # MET is the magnitude of the negative vector-sum of all constituent momenta
+    # in the transverse plane.  log1p-scaling keeps the regression target
+    # well-conditioned across the full GeV range.
+    pt_raw  = raw_tensor[:, :, 0]   # shape (N_events, N_constituents)
+    phi_raw = raw_tensor[:, :, 2]
+    met_x   = -np.sum(pt_raw * np.cos(phi_raw), axis=1)
+    met_y   = -np.sum(pt_raw * np.sin(phi_raw), axis=1)
+    met_all = np.log1p(np.sqrt(met_x**2 + met_y**2)).astype(np.float32)
+
     X_all, _ = preprocess_dataset(raw_tensor, norm=norm, pid_mapping=pid_mapping, add_pid_ohe=True)
 
     train_mask = np.zeros(len(data), dtype=bool)
     train_mask[train_idx] = True
-    X_train = X_all[train_idx] if len(train_idx) else np.empty((0, *X_all.shape[1:]))
-    y_train = y[train_idx] if len(train_idx) else np.empty((0,), dtype=np.int32)
+    X_train   = X_all[train_idx]   if len(train_idx) else np.empty((0, *X_all.shape[1:]))
+    y_train   = y[train_idx]       if len(train_idx) else np.empty((0,), dtype=np.int32)
+    met_train = met_all[train_idx] if len(train_idx) else np.empty((0,), dtype=np.float32)
 
     if augment and len(train_idx) > 0:
         aug = GSEALAugmentation(rotate=rotate, boost=boost, beta_max=beta_max)
@@ -77,10 +88,13 @@ def preprocess_and_augment(
     else:
         X_aug = X_train.copy()
 
-    X_val = X_all[val_idx] if len(val_idx) else np.empty((0, *X_all.shape[1:]))
-    y_val = y[val_idx] if len(val_idx) else np.empty((0,), dtype=np.int32)
-    X_eval = X_all[eval_idx] if len(eval_idx) else np.empty((0, *X_all.shape[1:]))
-    y_eval = y[eval_idx] if len(eval_idx) else np.empty((0,), dtype=np.int32)
+    X_val   = X_all[val_idx]     if len(val_idx)  else np.empty((0, *X_all.shape[1:]))
+    y_val   = y[val_idx]         if len(val_idx)  else np.empty((0,), dtype=np.int32)
+    met_val = met_all[val_idx]   if len(val_idx)  else np.empty((0,), dtype=np.float32)
+
+    X_eval   = X_all[eval_idx]   if len(eval_idx) else np.empty((0, *X_all.shape[1:]))
+    y_eval   = y[eval_idx]       if len(eval_idx) else np.empty((0,), dtype=np.int32)
+    met_eval = met_all[eval_idx] if len(eval_idx) else np.empty((0,), dtype=np.float32)
 
     mlflow.log_metrics({
         "n_train": len(X_train),
@@ -95,4 +109,4 @@ def preprocess_and_augment(
     if pid_dist_path:
         mlflow.log_artifact(pid_dist_path)
 
-    return X_train, X_aug, y_train, X_val, y_val, X_eval, y_eval
+    return X_train, X_aug, y_train, met_train, X_val, y_val, met_val, X_eval, y_eval, met_eval

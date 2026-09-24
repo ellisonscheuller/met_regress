@@ -57,6 +57,7 @@ model_training:
   nce_hold: 100
   temperature: 0.1
   mse_weight: 0.1
+  met_weight: 0.1
   beta_schedule:
     - [0, 0, "constant"]
     - [30, 0, "constant"]
